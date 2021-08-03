@@ -1,3 +1,3 @@
-module github.com/open-networks/go-msgraph
+module github.com/AutomatedElectricalSolutions/go-msgraph
 
 go 1.16
