@@ -125,6 +125,41 @@ func (g *GraphClient) makeGETAPICall(apicall string, getParams url.Values, v int
 	return g.performRequest(req, v)
 }
 
+func (g *GraphClient) makePostAPICall(apiCall string, postBody, v interface{}) error {
+	g.apiCall.Lock()
+	defer g.apiCall.Unlock() // unlock when the func returns
+	// Check token
+	if g.token.WantsToBeRefreshed() { // Token not valid anymore?
+		err := g.refreshToken()
+		if err != nil {
+			return err
+		}
+	}
+
+	reqURL, err := url.ParseRequestURI(BaseURL)
+	if err != nil {
+		return fmt.Errorf("unable to parse URI %v: %v", BaseURL, err)
+	}
+
+	body, err := json.Marshal(postBody)
+	if err != nil {
+		return fmt.Errorf("error marshalling request body %v", err)
+	}
+
+	// Add Version to API-Call, the leading slash is always added by the calling func
+	reqURL.Path = "/" + APIVersion + apiCall
+
+	req, err := http.NewRequest(http.MethodPost, reqURL.String(), bytes.NewBuffer(body))
+	if err != nil {
+		return fmt.Errorf("HTTP request error: %v", err)
+	}
+
+	req.Header.Add("Content-Type", "application/json")
+	req.Header.Add("Authorization", g.token.GetAccessToken())
+
+	return g.performRequest(req, v)
+}
+
 // performRequest performs a pre-prepared http.Request and does the proper error-handling for it.
 // does a json.Unmarshal into the v interface{} and returns the error of it if everything went well so far.
 func (g *GraphClient) performRequest(req *http.Request, v interface{}) error {
@@ -144,13 +179,25 @@ func (g *GraphClient) performRequest(req *http.Request, v interface{}) error {
 		return fmt.Errorf("StatusCode is not OK: %v. Body: %v ", resp.StatusCode, string(body))
 	}
 
-	//fmt.Println("Body: ", string(body))
-
 	if err != nil {
 		return fmt.Errorf("HTTP response read error: %v of http.Request: %v", err, req.URL)
 	}
 
-	return json.Unmarshal(body, &v) // return the error of the json unmarshal
+	if resp.ContentLength > 0 {
+		return json.Unmarshal(body, &v) // return the error of the json unmarshal
+	}
+
+	return nil
+}
+
+// Send email sends an email using the graph api
+func (g *GraphClient) SendEmail(mail Mail) error {
+	resource := fmt.Sprintf("/users/%s/sendMail", mail.Message.From.EmailAddress.Address)
+
+	var response interface{}
+	err := g.makePostAPICall(resource, mail, &response)
+
+	return err
 }
 
 // ListUsers returns a list of all users
