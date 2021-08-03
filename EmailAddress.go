@@ -8,10 +8,10 @@ package msgraph
 //
 // See https://developer.microsoft.com/en-us/graph/docs/api-reference/v1.0/resources/emailaddress
 type EmailAddress struct {
-	Address string `json:"address"` // The email address of the person or entity.
-	Name    string `json:"name"`    // The display name of the person or entity.
+	Address string `json:"address,omitempty"` // The email address of the person or entity.
+	Name    string `json:"name,omitempty"`    // The display name of the person or entity.
 
-	graphClient *GraphClient // the initiator of this EMailAddress Instance
+	graphClient *GraphClient `json:"-"` // the initiator of this EMailAddress Instance
 }
 
 func (e EmailAddress) String() string {
